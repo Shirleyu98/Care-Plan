@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Care Plan — {{ order.first_name }} {{ order.last_name }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #f5f4f0;
+      --surface: #ffffff;
+      --border:  #d6d3cc;
+      --accent:  #1a4a3a;
+      --accent2: #2d7a5f;
+      --text:    #1c1c1a;
+      --muted:   #7a7870;
+      --mono:    'IBM Plex Mono', monospace;
+      --sans:    'IBM Plex Sans', sans-serif;
+    }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 40px 20px 80px;
+    }
+
+    .page-header {
+      max-width: 860px;
+      margin: 0 auto 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-bottom: 2px solid var(--accent);
+      padding-bottom: 20px;
+    }
+
+    .page-header .left .label {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      color: var(--accent2);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .page-header h1 {
+      font-size: 26px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--accent);
+    }
+
+    .page-header .meta {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 10px 24px;
+      border-radius: 3px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+    }
+    .btn-primary:hover { background: var(--accent2); }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--accent);
+      border: 1.5px solid var(--accent);
+    }
+    .btn-outline:hover { background: #e8f0ec; }
+
+    /* Two-column layout: summary card + care plan */
+    .layout {
+      max-width: 860px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .summary-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      position: sticky;
+      top: 24px;
+    }
+
+    .card-title {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--surface);
+      background: var(--accent);
+      padding: 10px 16px;
+    }
+
+    .card-body { padding: 16px; }
+
+    .card-row {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .card-row:last-child { border-bottom: none; }
+
+    .card-row .key {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .card-row .value {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      word-break: break-word;
+    }
+
+    /* Care plan content */
+    .careplan {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .careplan-header {
+      background: var(--accent);
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .careplan-header .title {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--surface);
+    }
+
+    .careplan-header .order-id {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: rgba(255,255,255,0.55);
+    }
+
+    .careplan-body {
+      padding: 28px 28px 36px;
+    }
+
+    /* Render the markdown-like sections from the LLM */
+    .careplan-body h2 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: 0.01em;
+      margin: 28px 0 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+    .careplan-body h2:first-child { margin-top: 0; }
+
+    .careplan-body h3 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin: 16px 0 6px;
+    }
+
+    .careplan-body p {
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+
+    .careplan-body ul, .careplan-body ol {
+      padding-left: 20px;
+      margin-bottom: 10px;
+    }
+
+    .careplan-body li {
+      font-size: 14px;
+      line-height: 1.7;
+      margin-bottom: 4px;
+    }
+
+    .careplan-body strong { font-weight: 600; }
+
+    @media print {
+      .page-header .actions, .actions { display: none; }
+      body { background: white; padding: 20px; }
+      .layout { grid-template-columns: 1fr; }
+      .summary-card { position: static; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="page-header">
+    <div class="left">
+      <div class="label">CVS Specialty Pharmacy — Care Plan</div>
+      <h1>{{ order.first_name }} {{ order.last_name }}</h1>
+      <div class="meta">MRN {{ order.mrn }} &nbsp;·&nbsp; {{ order.medication_name }} &nbsp;·&nbsp; Order #{{ order_id }}</div>
+    </div>
+    <div class="actions">
+      <a href="/" class="btn btn-outline">← New Order</a>
+      <button class="btn btn-primary" onclick="window.print()">Print / Save PDF</button>
+      <button class="btn btn-primary" id="download-btn">Download .txt</button>
+    </div>
+  </div>
+
+  <div class="layout">
+
+    <!-- Summary sidebar -->
+    <div class="summary-card">
+      <div class="card-title">Order Summary</div>
+      <div class="card-body">
+        <div class="card-row">
+          <span class="key">Patient</span>
+          <span class="value">{{ order.first_name }} {{ order.last_name }}</span>
+        </div>
+        <div class="card-row">
+          <span class="key">MRN</span>
+          <span class="value">{{ order.mrn }}</span>
+        </div>
+        <div class="card-row">
+          <span class="key">Date of Birth</span>
+          <span class="value">{{ order.dob }}</span>
+        </div>
+        <div class="card-row">
+          <span class="key">Medication</span>
+          <span class="value">{{ order.medication_name }}</span>
+        </div>
+        <div class="card-row">
+          <span class="key">Primary Dx</span>
+          <span class="value">{{ order.primary_diagnosis }}</span>
+        </div>
+        {% if order.additional_diagnoses %}
+        <div class="card-row">
+          <span class="key">Additional Dx</span>
+          <span class="value">{{ order.additional_diagnoses }}</span>
+        </div>
+        {% endif %}
+        <div class="card-row">
+          <span class="key">Provider</span>
+          <span class="value">{{ order.provider_name }}</span>
+        </div>
+        <div class="card-row">
+          <span class="key">NPI</span>
+          <span class="value">{{ order.provider_npi }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Care Plan -->
+    <div class="careplan">
+      <div class="careplan-header">
+        <span class="title">Generated Care Plan</span>
+        <span class="order-id">Order #{{ order_id }}</span>
+      </div>
+      <div class="careplan-body" id="careplan-content">
+        {{ care_plan_html }}
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ── Simple markdown → HTML renderer for the LLM output ──────────────────
+    // Handles: ## headings, ### subheadings, - bullet lists, **bold**, plain text.
+    // We do this client-side so the Django view stays dead simple.
+
+    function renderMarkdown(text) {
+      const lines = text.split("\n");
+      let html = "";
+      let inList = false;
+
+      for (let raw of lines) {
+        const line = raw.trimEnd();
+
+        if (line.startsWith("## ")) {
+          if (inList) { html += "</ul>"; inList = false; }
+          html += `<h2>${esc(line.slice(3))}</h2>`;
+        } else if (line.startsWith("### ")) {
+          if (inList) { html += "</ul>"; inList = false; }
+          html += `<h3>${esc(line.slice(4))}</h3>`;
+        } else if (/^[-*] /.test(line)) {
+          if (!inList) { html += "<ul>"; inList = true; }
+          html += `<li>${inline(line.slice(2))}</li>`;
+        } else if (line.trim() === "") {
+          if (inList) { html += "</ul>"; inList = false; }
+        } else {
+          if (inList) { html += "</ul>"; inList = false; }
+          html += `<p>${inline(line)}</p>`;
+        }
+      }
+      if (inList) html += "</ul>";
+      return html;
+    }
+
+    function esc(s) {
+      return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    }
+
+    function inline(s) {
+      return esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    }
+
+    const rawText = {{ care_plan_raw|safe }};
+    document.getElementById("careplan-content").innerHTML = renderMarkdown(rawText);
+
+    // ── Download as .txt ─────────────────────────────────────────────────────
+    document.getElementById("download-btn").addEventListener("click", function () {
+      const blob = new Blob([rawText], { type: "text/plain" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "care_plan_{{ order.mrn }}_{{ order.medication_name|lower }}.txt"
+                    .replace(/\s+/g, "_");
+      a.click();
+    });
+  </script>
+
+</body>
+</html>
