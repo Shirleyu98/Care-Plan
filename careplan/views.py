@@ -2,7 +2,7 @@ import json
 import anthropic
 from django.conf import settings
 from django.shortcuts import render, redirect
-
+from django.http import JsonResponse
 # ─── In-memory store ──────────────────────────────────────────────────────────
 # This is intentionally the simplest possible storage.
 # Every restart wipes the data. We will replace this with a DB later.
@@ -60,10 +60,14 @@ Write the care plan now.
 def order_form(request):
     global NEXT_ID
 
+    print(">>> [1] Request received, method =", request.method)
+
     if request.method == "GET":
+        print(">>> [2] GET request — returning empty form")
         return render(request, "form.html")
 
     # POST — collect form data, call LLM, store result, redirect to result page
+    print(">>> [3] POST request — reading form data")
     order = {
         "first_name":           request.POST.get("first_name", "").strip(),
         "last_name":            request.POST.get("last_name", "").strip(),
@@ -78,21 +82,60 @@ def order_form(request):
         "patient_records":      request.POST.get("patient_records", "").strip(),
     }
 
+    print(">>> [4] Form data parsed:", order)
+    print(">>> [5] Calling LLM — this will block for ~15-30 seconds...")
+    
+
     order["care_plan"] = generate_care_plan(order)
+
+    print(">>> [6] LLM responded — first 100 chars:", order["care_plan"][:100])
 
     order_id = NEXT_ID
     ORDERS[order_id] = order
     NEXT_ID += 1
 
+    print(f">>> [7] Saved to memory — order_id = {order_id}, total orders in store: {len(ORDERS)}")
+    print(f">>> [8] Redirecting to /result/{order_id}/")
+
     return redirect("order_result", order_id=order_id)
 
 
 def order_result(request, order_id):
+    print(f">>> [9] order_result view hit — order_id = {order_id}")
+
     order = ORDERS.get(order_id)
     if order is None:
+        print(">>> [10] Order not found in memory — returning error page")
         return render(request, "form.html", {"error": "Order not found."})
+    print(">>> [11] Order found — rendering result page")
     return render(request, "result.html", {
         "order": order,
         "order_id": order_id,
         "care_plan_raw": json.dumps(order["care_plan"]),
     })
+
+# Search by name - personal practice
+def search_orders_by_name(request):
+    first_name = request.GET.get("first_name", "").strip()
+    last_name = request.GET.get("last_name", "").strip()
+
+    results = []
+
+    for order_id, order in ORDERS.items():
+
+        if not first_name and not last_name:
+            continue
+        if first_name and first_name.lower() not in order["first_name"].lower():
+            continue
+        if last_name and last_name.lower() not in order["last_name"].lower():
+            continue
+
+        results.append({
+            "order_id": order_id,
+            "first_name": order["first_name"],
+            "last_name": order["last_name"],
+            "mrn": order["mrn"],
+            "medication_name": order["medication_name"],
+        })
+    
+    return JsonResponse({"results": results})
